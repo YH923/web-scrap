@@ -21,25 +21,37 @@ def extract_indeed_pages():
   max_page = pages[-1]
   return max_page
 
+def extract_indeed_info(html):
+  title=html.find("div", {"class" : "title"}).find("a")["title"]
+
+  company = html.find("span", {"class" : "company"})
+  company_anchor = company.find("a")
+  if company_anchor is not None:
+    company = company_anchor.string
+  else:
+    company = company.string
+  company = company.strip()
+  location = html.find("div", {"class": "recJobLoc"})["data-rc-loc"]
+  job_id = html["data-jk"]
+  link = f"https://www.indeed.com/jobs?q=python&limit=50&vjk={job_id}"
+  return {"title": title, "company" : company, "location" : location, "link" : link}
+  
 def extract_indeed_jobs(last_page):
 
+  jobs =[]
   for page in range(last_page):
-    result = requests.get( f"{URL}&start={page*0}")
-
+    print(f"Scrapping page {page}")
+    result = requests.get( f"{URL}&start={page * LIMIT}")
     soup = BeautifulSoup(result.text, 'html.parser')
 
     lists = soup.find_all("div", {"class" : "jobsearch-SerpJobCard"})
     for list in lists:
-      title=list.find("div", {"class" : "title"}).find("a")["title"]
+      job = extract_indeed_info(list)
+      jobs.append(job)  
 
-      company = list.find("span", {"class" : "company"})
-      company_anchor = company.find("a")
-      if company_anchor is not None:
-        company = company_anchor.string
-      else:
-        company = company.string
-      company = company.strip()
-      print(title, company)   
+  return jobs  
+
+     
 
   
 
