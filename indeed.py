@@ -2,62 +2,55 @@ import requests
 from bs4 import BeautifulSoup
 
 LIMIT = 50
-URL = f"https://www.indeed.com/jobs?q=python&limit={LIMIT}"
+URL=f"https://www.indeed.com/jobs?q=python&limit={LIMIT}"
 
-def extract_indeed_pages():
-    
-  r = requests.get(URL)
-  soup = BeautifulSoup(r.text, 'html.parser')
+def get_last_page():
+  result = requests.get(URL)
+  soup = BeautifulSoup(result.text, 'html.parser')
 
-  pagination = soup.find("div",{"class":"pagination"})
+  pagination = soup.find("div", {"class":"pagination"})
 
-  anchor = pagination.find_all('a')
+  links = pagination.find_all('a')
+  pages = []
 
-  pages=[]
-  for link in anchor[:-1]:
-   pages.append(int(link.string))
-   #links.append(int(link.find("span").text))
-  
+  for link in links[:-1]:
+    pages.append(int(link.string))
+
   max_page = pages[-1]
   return max_page
 
-def extract_indeed_info(html):
-  title=html.find("div", {"class" : "title"}).find("a")["title"]
-
-  company = html.find("span", {"class" : "company"})
-  company_anchor = company.find("a")
-  if company_anchor is not None:
-    company = company_anchor.string
+def extract_job(html):
+  title = html.find("div",{"class" : "title"}).find("a")["title"]
+  company = html.find("span",{"class" : "company"})
+  if company:
+    if company.find("a") is not None:
+        company = company.find("a").string
+    else:
+       company = company.string
+    company = company.strip() 
   else:
-    company = company.string
-  company = company.strip()
-  location = html.find("div", {"class": "recJobLoc"})["data-rc-loc"]
-  job_id = html["data-jk"]
-  link = f"https://www.indeed.com/jobs?q=python&limit=50&vjk={job_id}"
-  return {"title": title, "company" : company, "location" : location, "link" : link}
+    company = None
   
-def extract_indeed_jobs(last_page):
+  location = html.find("div",{"class" : "recJobLoc"})["data-rc-loc"]
+  job_id=html["data-jk"]
+  return {"title": title, "company" : company, "location": location, "link" : f"https://www.indeed.com/viewjob?jk={job_id}"}
 
-  jobs =[]
+def extract_jobs(last_page):
+  jobs=[]
   for page in range(last_page):
-    print(f"Scrapping page {page}")
-    result = requests.get( f"{URL}&start={page * LIMIT}")
+    print(f"Scrapping ID: page: {page}")
+    result = requests.get(f"{URL}&start={page*LIMIT}")
     soup = BeautifulSoup(result.text, 'html.parser')
-
-    lists = soup.find_all("div", {"class" : "jobsearch-SerpJobCard"})
-    for list in lists:
-      job = extract_indeed_info(list)
-      jobs.append(job)  
-
-  return jobs  
-
-     
-
-  
-
-
-  
     
- 
-  
+    results = soup.find_all("div", {"class": "jobsearch-SerpJobCard"})
 
+    for result in results:
+      job = extract_job(result)
+      jobs.append(job)
+  return jobs
+
+
+def get_jobs():
+  last_pages = get_last_page()
+  jobs = extract_jobs(2)
+  return jobs
